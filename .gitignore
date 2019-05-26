@@ -8,4 +8,3 @@ public/
 src/_drafts
 package-lock.json
 yarn.lock
-!.vuepress/dist
