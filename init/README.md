@@ -2,6 +2,8 @@
 title: Initial commit
 date: '2019/05/23 08:18:34'
 type: post
+categories:
+  - 日常
 tag: 
   - 日常
 meta:
@@ -12,8 +14,6 @@ meta:
     name: keywords
     content: github vuepress
 ---
-
-## initial commit
 
 Github pages使ってなかったのでVue.js使って静的ページ作るブログ的な使い方したらおもしろそうだなと思って始めてみた。
 
