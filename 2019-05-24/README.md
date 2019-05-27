@@ -2,7 +2,7 @@
 title: vuepress設定
 date: '2019/05/24 20:24:17'
 type: post
-tag: vuepress
+tag: Vuepress
 meta:
   -
     name: description
@@ -56,3 +56,5 @@ yarn run vuepress build
 
 若干コンフィグをカスタマイズしているのと、github pagesにdeployする手順は次のポストで。
 
+## リンク集
+ - https://vuepressbook.com/markdown.html

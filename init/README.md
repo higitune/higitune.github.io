@@ -6,6 +6,7 @@ categories:
   - 日常
 tag: 
   - 日常
+  - Vuepress
 meta:
   -
     name: description
