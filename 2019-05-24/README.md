@@ -57,4 +57,4 @@ yarn run vuepress build
 若干コンフィグをカスタマイズしているのと、github pagesにdeployする手順は次のポストで。
 
 ## リンク集
- - https://vuepressbook.com/markdown.html
+ - [https://vuepressbook.com/markdown.html](https://vuepressbook.com/markdown.html)
