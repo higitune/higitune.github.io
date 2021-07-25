@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Image resize sample</title>
+</head>
+<body>
+
+<!-- ファイル選択ボタン -->
+<input type="file" accept="image/*">
+
+<!-- アップロードボタン -->
+<button id="upload">アップロード</button>
+
+<!-- 縮小画像の表示領域 -->
+<h2>canvas resized</h2>
+<canvas id="canvas-resized" width="800" height="0"></canvas>
+<h2>canvas 800-600</h2>
+<canvas id="canvas-800-600" width="800" height="600"></canvas>
+<h2>canvas 300-225</h2>
+<canvas id="canvas-300-225" width="300" height="225"></canvas>
+
+<!-- 以下、JavaScript -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script type="text/javascript">
+
+const drawImage = (canvas, image, operationType) => {
+  // 縮小後のサイズを計算する
+  var width, height;
+
+  if (operationType === 'resizeWidth') {
+    var ratio = image.height / image.width;
+    width = canvas.width;
+    height = image.height / image.width * canvas.width;
+    canvas.setAttribute('height', height);
+  } else if (image.width < image.height) {
+    // タテ長の画像は横のサイズを定数にあわせる
+    width = canvas.width;
+    height = image.height / image.width * canvas.width;
+  } else {
+    // ヨコ長の画像は縦サイズを定数にあわせる
+    width = image.width / image.height * canvas.height;
+    height = canvas.height;
+  }
+
+  // 縮小画像を描画するcanvasのサイズを上で算出した値に変更する
+  var ctx = canvas.getContext('2d');
+
+  // canvasに既に描画されている画像があればそれを消す
+  ctx.clearRect(0, 0, width, height);
+
+  var dx = (width - canvas.width) / 2;
+  var dy = (height - canvas.height) / 2;
+
+  console.info(
+      `sourceWidth: ${image.width} sourceHeight: ${image.height} dx: ${dx}, dy: ${dy}, destWidth: ${width}, destHeight: ${height}`
+  );
+
+  // canvasに縮小画像を描画する
+  ctx.drawImage(image,
+      0, 0, image.width, image.height,
+      -dx, -dy, width, height
+  );
+}
+
+
+
+$(function() {
+  var file = null; // 選択ファイルが格納される変数
+  var blob = null; // 画像(BLOBデータ)が格納される変数
+
+  // ファイルが選択されたら実行される関数
+  $('input[type=file]').change(function() {
+
+    // ファイルを取得する
+    file = $(this).prop('files')[0];
+
+    // 選択されたファイルが画像かどうか判定する
+    // ここでは、jpeg形式とpng形式のみを画像をみなす
+    if (file.type != 'image/jpeg' && file.type != 'image/png') {
+      // 画像でない場合は何もせず終了する
+      file = null;
+      blob = null;
+      return;
+    }
+
+    // 画像をリサイズする
+    var image = new Image();
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      image.onload = function() {
+
+        var canvas = $('#canvas-resized')[0];
+        drawImage(canvas, image, 'resizeWidth');
+        var canvas2 = $('#canvas-800-600')[0];
+        drawImage(canvas2, image);
+        var canvas3 = $('#canvas-300-225')[0];
+        drawImage(canvas3, image);
+
+        // canvasから画像をbase64として取得する
+        var base64 = canvas.get(0).toDataURL('image/jpeg');
+
+        // base64から画像データを作成する
+        var barr, bin, i, len;
+        bin = atob(base64.split('base64,')[1]);
+        len = bin.length;
+        barr = new Uint8Array(len);
+        i = 0;
+        while (i < len) {
+          barr[i] = bin.charCodeAt(i);
+          i++;
+        }
+        blob = new Blob([barr], {type: 'image/jpeg'});
+
+      }
+      image.src = e.target.result;
+    }
+    reader.readAsDataURL(file);
+  });
+
+
+  // アップロードボタンがクリックされたら実行される関数
+  $('#upload').click(function(){
+
+    // ファイルが指定されていなければ何も起こらない
+    if(!file || !blob) {
+      return;
+    }
+
+    // 送信するフォームデータを作成する
+    var name, fd = new FormData();
+
+    // 先ほど作った縮小済画像データを添付する
+    fd.append('file', blob);
+
+    // ajax でアップロード
+    $.ajax({
+      url: "http://exapmle.com", // 送信先のURL
+      type: 'POST',
+      dataType: 'json',
+      data: fd,
+      processData: false,
+      contentType: false
+    })
+    .done(function( data, textStatus, jqXHR ) {
+      // 送信成功
+    })
+    .fail(function( jqXHR, textStatus, errorThrown ) {
+      // 送信失敗
+    });
+
+  });
+
+});
+</script>
+
+
+</body>
+</html>
