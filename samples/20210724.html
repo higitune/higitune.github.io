@@ -10,19 +10,31 @@
 <input type="file" accept="image/*">
 
 <!-- アップロードボタン -->
-<button id="upload">アップロード</button>
+<button id="upload" disabled>アップロード</button>
 
 <!-- 縮小画像の表示領域 -->
 <h2>canvas resized</h2>
-<canvas id="canvas-resized" width="800" height="0"></canvas>
+<canvas id="canvas-resized" width="800" height="0" hidden></canvas>
 <h2>canvas 800-600</h2>
-<canvas id="canvas-800-600" width="800" height="600"></canvas>
+<canvas id="canvas-800-600" width="800" height="600" hidden></canvas>
 <h2>canvas 300-225</h2>
 <canvas id="canvas-300-225" width="300" height="225"></canvas>
 
 <!-- 以下、JavaScript -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.410.0.min.js"></script>
 <script type="text/javascript">
+const s3_client = function() {
+AWS.config.region = "ap-northeast-1";
+AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+  IdentityPoolId: "ap-northeast-1:82b6a2fc-eb8a-4780-9ea4-679f92d30675"});
+AWS.config.credentials.get(function(err) {
+    if (!err) {
+        console.log("Cognito Identify Id: " + AWS.config.credentials.identityId);
+    }
+});
+return new AWS.S3({params: {Bucket: "sauna-ikitai-image-speedup-test"}});
+};
 
 const drawImage = (canvas, image, operationType) => {
   // 縮小後のサイズを計算する
@@ -64,10 +76,48 @@ const drawImage = (canvas, image, operationType) => {
 }
 
 
+const canvas2blob = (canvas) => {
+  // canvasから画像をbase64として取得する
+  var base64 = canvas.toDataURL('image/jpeg');
+
+  // base64から画像データを作成する
+  var barr, bin, i, len;
+  bin = atob(base64.split('base64,')[1]);
+  len = bin.length;
+  barr = new Uint8Array(len);
+  i = 0;
+  while (i < len) {
+    barr[i] = bin.charCodeAt(i);
+    i++;
+  }
+  blob = new Blob([barr], {type: 'image/jpeg'});
+  return blob;
+}
+
+async function s3upload (filename, filetype, blob) {
+  result = await s3_client().putObject({Key: filename, ContentType: filetype, Body: blob, ACL: "public-read"},
+    function(err, data){
+      // if failed, alert
+      if(data !== null){
+        console.info("アップロード成功!");
+        return true;
+      } else {
+        console.info("アップロード失敗.");
+        return false;
+      }
+    }
+  );
+
+  return result;
+}
+
 
 $(function() {
   var file = null; // 選択ファイルが格納される変数
-  var blob = null; // 画像(BLOBデータ)が格納される変数
+  var blob_resized = null; // 画像(BLOBデータ)が格納される変数
+  var blob_800_600 = null; // 画像(BLOBデータ)が格納される変数
+  var blob_300_225 = null; // 画像(BLOBデータ)が格納される変数
+  var upload_complete = false;
 
   // ファイルが選択されたら実行される関数
   $('input[type=file]').change(function() {
@@ -97,21 +147,24 @@ $(function() {
         var canvas3 = $('#canvas-300-225')[0];
         drawImage(canvas3, image);
 
-        // canvasから画像をbase64として取得する
-        var base64 = canvas.get(0).toDataURL('image/jpeg');
-
-        // base64から画像データを作成する
-        var barr, bin, i, len;
-        bin = atob(base64.split('base64,')[1]);
-        len = bin.length;
-        barr = new Uint8Array(len);
-        i = 0;
-        while (i < len) {
-          barr[i] = bin.charCodeAt(i);
-          i++;
-        }
-        blob = new Blob([barr], {type: 'image/jpeg'});
-
+        const timestamp = new Date().getTime();
+        const basename = `test-file-${timestamp}-`
+        blob_resized = canvas2blob(canvas);
+        blob_800_600 = canvas2blob(canvas2);
+        blob_300_225 = canvas2blob(canvas3);
+        Promise.all(
+            [
+              s3upload(basename + 'resized.jpg', file.type, blob_resized),
+              s3upload(basename + '800-600.jpg', file.type, blob_800_600),
+              s3upload(basename + '300-225.jpg', file.type, blob_300_225),
+            ]
+        ).then((values) => {
+          if (values.every(e => e)) {
+            console.info("complete all upload");
+            upload_complete = true;
+            $("#upload").attr('disabled', false);
+          }
+        })
       }
       image.src = e.target.result;
     }
@@ -121,19 +174,32 @@ $(function() {
 
   // アップロードボタンがクリックされたら実行される関数
   $('#upload').click(function(){
+    console.info("upload");
 
     // ファイルが指定されていなければ何も起こらない
-    if(!file || !blob) {
+    if(!file || !blob_resized) {
       return;
     }
 
-    // 送信するフォームデータを作成する
-    var name, fd = new FormData();
+    for (const blob of [blob_resized, blob_800_600, blob_300_225]) {
+      var timestamp = new Date().getTime();
+      var filename = "file" + timestamp + ".jpg";
+      s3_client().putObject({Key: filename, ContentType: file.type, Body: blob, ACL: "public-read"},
+          function(err, data){
+            // if failed, alert
+            if(data !== null){
+              console.info("アップロード成功!");
+            } else {
+              console.info("アップロード失敗.");
+            }
+          }
+      );
+    }
 
-    // 先ほど作った縮小済画像データを添付する
-    fd.append('file', blob);
+  });
 
-    // ajax でアップロード
+
+    /* ajax でアップロード
     $.ajax({
       url: "http://exapmle.com", // 送信先のURL
       type: 'POST',
@@ -150,7 +216,7 @@ $(function() {
     });
 
   });
-
+   */
 });
 </script>
 
